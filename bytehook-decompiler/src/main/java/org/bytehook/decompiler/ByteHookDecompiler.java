@@ -3,7 +3,6 @@ package org.bytehook.decompiler;
 import java.lang.classfile.*;
 import java.lang.classfile.instruction.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class ByteHookDecompiler {
 
@@ -13,11 +12,9 @@ public class ByteHookDecompiler {
         ClassModel classModel = CLASS_FILE.parse(classBuffer);
         StringBuilder sb = new StringBuilder();
 
-        // Package and Class
         String className = classModel.thisClass().asInternalName().replace('/', '.');
         sb.append("public class ").append(className).append(" {\n\n");
 
-        // Methods
         for (MethodModel method : classModel.methods()) {
             sb.append(decompileMethod(method, showBytecode)).append("\n");
         }
@@ -31,14 +28,26 @@ public class ByteHookDecompiler {
         String name = method.methodName().stringValue();
         String desc = method.methodType().stringValue();
         
-        // Pretty-print signature
         sb.append("  public ").append(formatSignature(name, desc)).append(" {\n");
 
         method.code().ifPresent(code -> {
             Stack<String> stack = new Stack<>();
             Map<Integer, String> locals = new HashMap<>();
-            
+            Map<Label, String> labelMap = new HashMap<>();
+            int labelCounter = 1;
+
+            // Pre-pass to find all labels used in branches
             for (CodeElement element : code) {
+                if (element instanceof BranchInstruction branch) {
+                    labelMap.putIfAbsent(branch.target(), "label_" + labelCounter++);
+                }
+            }
+
+            for (CodeElement element : code) {
+                if (element instanceof Label label && labelMap.containsKey(label)) {
+                    sb.append("    ").append(labelMap.get(label)).append(":\n");
+                }
+
                 if (showBytecode && element instanceof Instruction instr) {
                     sb.append("    // ").append(instr.opcode().name()).append("\n");
                 }
@@ -51,11 +60,25 @@ public class ByteHookDecompiler {
                     String val = stack.isEmpty() ? "???" : stack.pop();
                     locals.put(store.slot(), val);
                     sb.append("    var").append(store.slot()).append(" = ").append(val).append(";\n");
+                } else if (element instanceof IncrementInstruction iinc) {
+                    String current = locals.getOrDefault(iinc.slot(), "var" + iinc.slot());
+                    locals.put(iinc.slot(), "(" + current + " + " + iinc.constant() + ")");
+                    sb.append("    var").append(iinc.slot()).append("++;\n");
                 } else if (element instanceof OperatorInstruction op) {
                     if (stack.size() >= 2) {
                         String b = stack.pop();
                         String a = stack.pop();
                         stack.push("(" + a + " " + getOpSymbol(op.opcode()) + " " + b + ")");
+                    }
+                } else if (element instanceof BranchInstruction branch) {
+                    String target = labelMap.get(branch.target());
+                    if (branch.opcode() == Opcode.GOTO || branch.opcode() == Opcode.GOTO_W) {
+                        sb.append("    goto ").append(target).append(";\n");
+                    } else {
+                        // Conditional branch
+                        String b = isZeroBranch(branch.opcode()) ? "0" : (stack.isEmpty() ? "0" : stack.pop());
+                        String a = stack.isEmpty() ? "0" : stack.pop();
+                        sb.append("    if (").append(a).append(" ").append(getBranchSymbol(branch.opcode())).append(" ").append(b).append(") goto ").append(target).append(";\n");
                     }
                 } else if (element instanceof InvokeInstruction invoke) {
                     int argCount = getArgCount(invoke.typeSymbol().descriptorString());
@@ -92,8 +115,26 @@ public class ByteHookDecompiler {
         return sb.toString();
     }
 
+    private boolean isZeroBranch(Opcode op) {
+        return switch (op) {
+            case IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE -> true;
+            default -> false;
+        };
+    }
+
+    private String getBranchSymbol(Opcode op) {
+        return switch (op) {
+            case IF_ICMPEQ, IF_ACMPEQ, IFEQ -> "==";
+            case IF_ICMPNE, IF_ACMPNE, IFNE -> "!=";
+            case IF_ICMPLT, IFLT -> "<";
+            case IF_ICMPGE, IFGE -> ">=";
+            case IF_ICMPGT, IFGT -> ">";
+            case IF_ICMPLE, IFLE -> "<=";
+            default -> "??";
+        };
+    }
+
     private String formatSignature(String name, String desc) {
-        // Simple conversion of (II)I to int name(int, int)
         int paramEnd = desc.indexOf(')');
         String params = desc.substring(1, paramEnd);
         String ret = desc.substring(paramEnd + 1);
@@ -103,7 +144,7 @@ public class ByteHookDecompiler {
             char c = params.charAt(i);
             if (c == 'I') paramList.add("int");
             else if (c == 'L' && params.startsWith("java/lang/String", i)) {
-                paramList.add("String[]"); // Hack for main
+                paramList.add("String[]");
                 break;
             }
         }
@@ -120,7 +161,7 @@ public class ByteHookDecompiler {
                 while (desc.charAt(i) != ';') i++;
                 count++;
             } else if (desc.charAt(i) == '[') {
-                continue; // Array doesn't count as extra arg
+                continue;
             } else {
                 count++;
             }
