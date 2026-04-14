@@ -61,25 +61,25 @@ public class Main extends Application {
         fontPicker.setOnAction(e -> updateFont());
 
         fontSizeSpinner = new Spinner<>(8, 32, 13);
-        fontSizeSpinner.getStyleClass().add(Spinner.STYLE_CLASS_SPLIT_ARROWS_HORIZONTAL);
-        fontSizeSpinner.setPrefWidth(70);
+        fontSizeSpinner.setPrefWidth(90); // Increased width to prevent digit truncation
         fontSizeSpinner.valueProperty().addListener((obs, oldVal, newVal) -> updateFont());
 
         // Theme Settings
         themePicker = new ComboBox<>();
         themePicker.getItems().addAll("Eclipse Dark", "Eclipse Light");
         themePicker.setValue("Eclipse Dark");
+        themePicker.setPrefWidth(120);
         themePicker.setOnAction(e -> updateTheme());
 
         toolBar.getItems().addAll(
             openBtn, new Separator(), 
-            new Label("Message:"), hookMessageInput, applyBtn, 
+            new Label("MESSAGE:"), hookMessageInput, applyBtn, 
             new Separator(), 
             showBytecodeToggle,
             new Separator(),
-            new Label("Font:"), fontPicker, fontSizeSpinner,
+            new Label("FONT:"), fontPicker, fontSizeSpinner,
             new Separator(),
-            new Label("Theme:"), themePicker
+            new Label("THEME:"), themePicker
         );
         root.setTop(toolBar);
 

@@ -4,20 +4,77 @@
 }
 
 .tool-bar {
-    -fx-padding: 10px;
-    -fx-spacing: 10px;
+    -fx-padding: 8px 15px;
+    -fx-spacing: 12px;
     -fx-border-width: 0 0 1 0;
 }
 
+/* Modern Flat Buttons */
 .button {
-    -fx-padding: 5 15 5 15;
-    -fx-background-radius: 3;
+    -fx-background-color: #454545;
+    -fx-text-fill: #e1e1e1;
+    -fx-background-radius: 4;
+    -fx-cursor: hand;
+    -fx-transition: 0.2s;
 }
 
-.label {
-    -fx-font-weight: bold;
-    -fx-font-size: 11px;
-    -fx-padding: 5;
+.button:hover {
+    -fx-background-color: #555555;
+}
+
+.button:pressed {
+    -fx-background-color: #353535;
+}
+
+/* Modern Combo Boxes */
+.combo-box {
+    -fx-background-color: #3c3c3c;
+    -fx-background-radius: 4;
+    -fx-border-color: #555555;
+    -fx-border-radius: 4;
+    -fx-padding: 0;
+}
+
+.combo-box .cell {
+    -fx-text-fill: #e1e1e1;
+    -fx-background-color: transparent;
+}
+
+.combo-box .list-view {
+    -fx-background-color: #3c3c3c;
+    -fx-border-color: #555555;
+}
+
+/* Modern Spinner Fix */
+.spinner {
+    -fx-background-color: #3c3c3c;
+    -fx-background-radius: 4;
+    -fx-border-color: #555555;
+    -fx-border-radius: 4;
+}
+
+.spinner .text-field {
+    -fx-background-color: transparent;
+    -fx-text-fill: #e1e1e1;
+    -fx-padding: 2 5;
+}
+
+.spinner .increment-arrow-button, .spinner .decrement-arrow-button {
+    -fx-background-color: #454545;
+}
+
+.spinner .increment-arrow-button:hover, .spinner .decrement-arrow-button:hover {
+    -fx-background-color: #555555;
+}
+
+/* Text Fields */
+.text-field {
+    -fx-background-color: #3c3c3c;
+    -fx-text-fill: #e1e1e1;
+    -fx-border-color: #555555;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 5 10;
 }
 
 .split-pane {
