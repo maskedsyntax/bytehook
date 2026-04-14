@@ -12,12 +12,21 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         if (args.length < 2) {
-            System.err.println("Usage: java -jar bytehook-cli.jar <class-file> <message>");
+            System.err.println("Usage: java -jar bytehook-cli.jar <class-file> <message> [LOGGING|TIMING]");
             System.exit(1);
         }
 
         Path inputPath = Paths.get(args[0]);
         String message = args[1];
+        ByteHookTransformer.HookType type = ByteHookTransformer.HookType.LOGGING;
+        
+        if (args.length > 2) {
+            try {
+                type = ByteHookTransformer.HookType.valueOf(args[2].toUpperCase());
+            } catch (IllegalArgumentException e) {
+                System.err.println("Invalid hook type: " + args[2] + ". Using LOGGING.");
+            }
+        }
 
         if (!Files.exists(inputPath)) {
             System.err.println("Error: File " + inputPath + " does not exist.");
@@ -26,7 +35,7 @@ public class Main {
 
         byte[] inputBytes = Files.readAllBytes(inputPath);
         ByteHookTransformer transformer = new ByteHookTransformer();
-        byte[] outputBytes = transformer.transform(inputBytes, message);
+        byte[] outputBytes = transformer.transform(inputBytes, message, type);
 
         Path outputPath = inputPath.resolveSibling(inputPath.getFileName().toString().replace(".class", "-hooked.class"));
         Files.write(outputPath, outputBytes);
@@ -35,6 +44,6 @@ public class Main {
 
         System.out.println("\n--- Decompiled Instrumented Source ---");
         ByteHookDecompiler decompiler = new ByteHookDecompiler();
-        System.out.println(decompiler.decompile(outputBytes));
+        System.out.println(decompiler.decompile(outputBytes, false));
     }
 }
