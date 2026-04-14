@@ -20,12 +20,19 @@ public class ByteHookTransformer {
     private static final MethodTypeDesc MTD_nanoTime = MethodTypeDesc.of(CD_long);
     private static final MethodTypeDesc MTD_println = MethodTypeDesc.of(CD_void, CD_String);
 
-    public byte[] transform(byte[] classBuffer, String message, HookType type) {
+    public byte[] transform(byte[] classBuffer, String message, HookType type, String methodFilter) {
         ClassModel classModel = CLASS_FILE.parse(classBuffer);
 
         return CLASS_FILE.transformClass(classModel, (classBuilder, classElement) -> {
             if (classElement instanceof MethodModel method) {
                 String name = method.methodName().stringValue();
+                
+                // Check filter
+                if (methodFilter != null && !methodFilter.isEmpty() && !name.matches(methodFilter)) {
+                    classBuilder.with(method);
+                    return;
+                }
+
                 if (name.equals("<init>") || name.equals("<clinit>")) {
                     classBuilder.with(method);
                     return;

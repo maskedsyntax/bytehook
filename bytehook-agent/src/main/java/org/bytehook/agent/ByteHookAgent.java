@@ -13,13 +13,17 @@ public class ByteHookAgent {
         
         String message = "Hook Injected";
         ByteHookTransformer.HookType type = ByteHookTransformer.HookType.LOGGING;
+        String filter = ".*";
 
         if (agentArgs != null && !agentArgs.isEmpty()) {
-            String[] parts = agentArgs.split(",", 2);
+            String[] parts = agentArgs.split(",");
             try {
                 type = ByteHookTransformer.HookType.valueOf(parts[0].toUpperCase());
                 if (parts.length > 1) {
                     message = parts[1];
+                }
+                if (parts.length > 2) {
+                    filter = parts[2];
                 }
             } catch (IllegalArgumentException e) {
                 // First part wasn't a hook type, treat whole thing as message
@@ -29,6 +33,7 @@ public class ByteHookAgent {
         
         final String finalMessage = message;
         final ByteHookTransformer.HookType finalType = type;
+        final String finalFilter = filter;
 
         inst.addTransformer(new ClassFileTransformer() {
             private final ByteHookTransformer transformer = new ByteHookTransformer();
@@ -40,7 +45,7 @@ public class ByteHookAgent {
                 // Only instrument specific classes to avoid recursion/system issues
                 if (className != null && className.startsWith("samples/")) {
                     try {
-                        return transformer.transform(classfileBuffer, finalMessage, finalType);
+                        return transformer.transform(classfileBuffer, finalMessage, finalType, finalFilter);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }

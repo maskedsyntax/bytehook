@@ -25,6 +25,7 @@ public class Main extends Application {
     private CodeArea originalSourceView;
     private CodeArea instrumentedSourceView;
     private TextField hookMessageInput;
+    private TextField methodFilterInput;
     private ComboBox<ByteHookTransformer.HookType> hookTypePicker;
     private CheckBox showBytecodeToggle;
     private ComboBox<String> fontPicker;
@@ -48,6 +49,10 @@ public class Main extends Application {
         hookMessageInput = new TextField("Hook Injected");
         hookMessageInput.setPromptText("Hook Message");
         
+        methodFilterInput = new TextField(".*");
+        methodFilterInput.setPromptText("Method Regex");
+        methodFilterInput.setPrefWidth(80);
+
         hookTypePicker = new ComboBox<>();
         hookTypePicker.getItems().addAll(ByteHookTransformer.HookType.values());
         hookTypePicker.setValue(ByteHookTransformer.HookType.LOGGING);
@@ -80,6 +85,7 @@ public class Main extends Application {
         toolBar.getItems().addAll(
             openBtn, new Separator(), 
             new Label("Type:"), hookTypePicker,
+            new Label("Filter:"), methodFilterInput,
             new Label("Message:"), hookMessageInput, applyBtn, 
             new Separator(), 
             showBytecodeToggle,
@@ -170,7 +176,7 @@ public class Main extends Application {
                 boolean showBytecode = showBytecodeToggle.isSelected();
                 
                 // Instrumented
-                byte[] transformed = transformer.transform(currentClassBytes, hookMessageInput.getText(), hookTypePicker.getValue());
+                byte[] transformed = transformer.transform(currentClassBytes, hookMessageInput.getText(), hookTypePicker.getValue(), methodFilterInput.getText());
                 String instDecompiled = decompiler.decompile(transformed, showBytecode);
                 instrumentedSourceView.replaceText(instDecompiled);
                 instrumentedSourceView.setStyleSpans(0, JavaSyntaxHighlighter.computeHighlighting(instDecompiled));
