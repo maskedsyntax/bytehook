@@ -1,0 +1,6 @@
+rootProject.name = 'bytehook'
+include 'bytehook-core'
+include 'bytehook-cli'
+include 'bytehook-decompiler'
+include 'bytehook-agent'
+include 'bytehook-gui'

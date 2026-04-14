@@ -1,0 +1,18 @@
+dependencies {
+    implementation project(':bytehook-core')
+}
+
+jar {
+    manifest {
+        attributes(
+            'Premain-Class': 'org.bytehook.agent.ByteHookAgent',
+            'Can-Redefine-Classes': 'true',
+            'Can-Retransform-Classes': 'true'
+        )
+    }
+    // Fat Jar approach: bundle core classes into the agent
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}

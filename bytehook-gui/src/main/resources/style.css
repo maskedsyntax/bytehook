@@ -1,0 +1,84 @@
+/* Global Layout & UI */
+.root {
+    -fx-font-family: "Segoe UI", sans-serif;
+}
+
+.tool-bar {
+    -fx-padding: 10px;
+    -fx-spacing: 10px;
+    -fx-border-width: 0 0 1 0;
+}
+
+.button {
+    -fx-padding: 5 15 5 15;
+    -fx-background-radius: 3;
+}
+
+.label {
+    -fx-font-weight: bold;
+    -fx-font-size: 11px;
+    -fx-padding: 5;
+}
+
+.split-pane {
+    -fx-padding: 0;
+}
+
+/* THEME: Eclipse Dark */
+.theme-dark {
+    -fx-base: #2f2f2f;
+    -fx-background-color: #2f2f2f;
+}
+.theme-dark .tool-bar { -fx-background-color: #3c3f41; -fx-border-color: #2b2b2b; }
+.theme-dark .button { -fx-background-color: #4b4b4b; -fx-text-fill: #afb1b3; }
+.theme-dark .label { -fx-text-fill: #999999; }
+
+/* Code Area Base for Dark Mode */
+.theme-dark .code-area { 
+    -fx-background-color: #2b2b2b; 
+}
+.theme-dark .code-area .text {
+    -fx-fill: #a9b7c6; /* Default text color */
+}
+
+/* Syntax Highlighting - Dark Mode */
+.theme-dark .code-area .keyword { -fx-fill: #cc7832; -fx-font-weight: bold; }
+.theme-dark .code-area .string { -fx-fill: #6a8759; }
+.theme-dark .code-area .comment { -fx-fill: #808080; -fx-font-style: italic; }
+.theme-dark .code-area .type { -fx-fill: #a9b7c6; }
+.theme-dark .code-area .method { -fx-fill: #ffc66d; }
+.theme-dark .code-area .paren, .theme-dark .code-area .brace, .theme-dark .code-area .bracket { -fx-fill: #a9b7c6; }
+.theme-dark .lineno { 
+    -fx-text-fill: #909090; 
+    -fx-background-color: #313335; 
+    -fx-padding: 0 5 0 5;
+}
+
+/* THEME: Eclipse Light */
+.theme-light {
+    -fx-base: #f0f0f0;
+    -fx-background-color: #ffffff;
+}
+.theme-light .tool-bar { -fx-background-color: #f0f0f0; -fx-border-color: #d1d1d1; }
+.theme-light .button { -fx-background-color: #e1e1e1; -fx-text-fill: #000000; }
+.theme-light .label { -fx-text-fill: #666666; }
+
+.theme-light .code-area { 
+    -fx-background-color: #ffffff; 
+}
+.theme-light .code-area .text {
+    -fx-fill: #000000; 
+}
+
+/* Syntax Highlighting - Light Mode */
+.theme-light .code-area .keyword { -fx-fill: #7f0055; -fx-font-weight: bold; }
+.theme-light .code-area .string { -fx-fill: #2a00ff; }
+.theme-light .code-area .comment { -fx-fill: #3f7f5f; -fx-font-style: italic; }
+.theme-light .code-area .type { -fx-fill: #000000; }
+.theme-light .code-area .method { -fx-fill: #000000; }
+.theme-light .code-area .paren, .theme-light .code-area .brace, .theme-light .code-area .bracket { -fx-fill: #000000; }
+.theme-light .lineno { 
+    -fx-text-fill: #999999; 
+    -fx-background-color: #eeeeee; 
+    -fx-padding: 0 5 0 5;
+}
