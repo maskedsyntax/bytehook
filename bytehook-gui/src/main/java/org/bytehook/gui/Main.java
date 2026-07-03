@@ -9,6 +9,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.bytehook.core.instrument.ByteHookTransformer;
+import org.bytehook.core.instrument.JarProcessor;
 import org.bytehook.decompiler.ByteHookDecompiler;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
@@ -21,9 +22,11 @@ public class Main extends Application {
 
     private final ByteHookDecompiler decompiler = new ByteHookDecompiler();
     private final ByteHookTransformer transformer = new ByteHookTransformer();
+    private final JarProcessor jarProcessor = new JarProcessor();
 
     private CodeArea originalSourceView;
     private CodeArea instrumentedSourceView;
+    private TreeView<String> jarTreeView;
     private TextField hookMessageInput;
     private TextField methodFilterInput;
     private ComboBox<ByteHookTransformer.HookType> hookTypePicker;
@@ -32,6 +35,7 @@ public class Main extends Application {
     private ComboBox<String> themePicker;
     private Spinner<Integer> fontSizeSpinner;
     private byte[] currentClassBytes;
+    private File currentJarFile;
     private BorderPane root;
 
     @Override
@@ -43,8 +47,11 @@ public class Main extends Application {
 
         // Top Toolbar
         ToolBar toolBar = new ToolBar();
-        Button openBtn = new Button("Open .class File");
+        Button openBtn = new Button("Open File");
         openBtn.setOnAction(e -> openFile(primaryStage));
+
+        Button exportBtn = new Button("Export JAR");
+        exportBtn.setOnAction(e -> exportJar(primaryStage));
         
         hookMessageInput = new TextField("Hook Injected");
         hookMessageInput.setPromptText("Hook Message");
@@ -83,7 +90,7 @@ public class Main extends Application {
         themePicker.setOnAction(e -> updateTheme());
 
         toolBar.getItems().addAll(
-            openBtn, new Separator(), 
+            openBtn, exportBtn, new Separator(), 
             new Label("Type:"), hookTypePicker,
             new Label("Filter:"), methodFilterInput,
             new Label("Message:"), hookMessageInput, applyBtn, 
@@ -100,6 +107,14 @@ public class Main extends Application {
         SplitPane splitPane = new SplitPane();
         splitPane.setOrientation(Orientation.HORIZONTAL);
 
+        jarTreeView = new TreeView<>();
+        jarTreeView.setPrefWidth(250);
+        jarTreeView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && newVal.isLeaf() && newVal.getValue().endsWith(".class")) {
+                loadClassFromJar();
+            }
+        });
+
         originalSourceView = createCodeArea();
         instrumentedSourceView = createCodeArea();
 
@@ -109,12 +124,12 @@ public class Main extends Application {
         VBox.setVgrow(originalSourceView, javafx.scene.layout.Priority.ALWAYS);
         VBox.setVgrow(instrumentedSourceView, javafx.scene.layout.Priority.ALWAYS);
 
-        splitPane.getItems().addAll(leftBox, rightBox);
-        splitPane.setDividerPositions(0.5);
+        splitPane.getItems().addAll(jarTreeView, leftBox, rightBox);
+        splitPane.setDividerPositions(0.2, 0.6);
 
         root.setCenter(splitPane);
 
-        Scene scene = new Scene(root, 1200, 800);
+        Scene scene = new Scene(root, 1400, 800);
         scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -124,9 +139,6 @@ public class Main extends Application {
         CodeArea area = new CodeArea();
         area.setEditable(false);
         area.setParagraphGraphicFactory(LineNumberFactory.get(area));
-        area.textProperty().addListener((obs, oldText, newText) -> {
-            area.setStyleSpans(0, JavaSyntaxHighlighter.computeHighlighting(newText));
-        });
         return area;
     }
 
@@ -150,22 +162,99 @@ public class Main extends Application {
 
     private void openFile(Stage stage) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Class Files", "*.class"));
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("Java Files", "*.class", "*.jar")
+        );
         File file = fileChooser.showOpenDialog(stage);
 
         if (file != null) {
+            if (file.getName().endsWith(".jar")) {
+                currentJarFile = file;
+                loadJarTree(file);
+            } else {
+                try {
+                    currentJarFile = null;
+                    currentClassBytes = Files.readAllBytes(file.toPath());
+                    jarTreeView.setRoot(new TreeItem<>(file.getName()));
+                    applyHook(); 
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private void loadJarTree(File jarFile) {
+        TreeItem<String> rootItem = new TreeItem<>(jarFile.getName());
+        rootItem.setExpanded(true);
+        try (java.util.jar.JarFile jar = new java.util.jar.JarFile(jarFile)) {
+            jar.stream().forEach(entry -> {
+                String name = entry.getName();
+                String[] parts = name.split("/");
+                TreeItem<String> current = rootItem;
+                for (String part : parts) {
+                    TreeItem<String> next = null;
+                    for (TreeItem<String> child : current.getChildren()) {
+                        if (child.getValue().equals(part)) {
+                            next = child;
+                            break;
+                        }
+                    }
+                    if (next == null) {
+                        next = new TreeItem<>(part);
+                        current.getChildren().add(next);
+                    }
+                    current = next;
+                }
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        jarTreeView.setRoot(rootItem);
+    }
+
+    private void loadClassFromJar() {
+        StringBuilder pathBuilder = new StringBuilder();
+        TreeItem<String> item = jarTreeView.getSelectionModel().getSelectedItem();
+        while (item != null && item.getParent() != null) {
+            if (pathBuilder.length() > 0) pathBuilder.insert(0, "/");
+            pathBuilder.insert(0, item.getValue());
+            item = item.getParent();
+        }
+        String entryPath = pathBuilder.toString();
+
+        try (java.util.jar.JarFile jar = new java.util.jar.JarFile(currentJarFile)) {
+            java.util.jar.JarEntry entry = jar.getJarEntry(entryPath);
+            if (entry != null) {
+                currentClassBytes = jar.getInputStream(entry).readAllBytes();
+                applyHook();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void exportJar(Stage stage) {
+        if (currentJarFile == null) {
+            new Alert(Alert.AlertType.WARNING, "Please open a JAR file first.").show();
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setInitialFileName(currentJarFile.getName().replace(".jar", "-hooked.jar"));
+        File saveFile = fileChooser.showSaveDialog(stage);
+
+        if (saveFile != null) {
             try {
-                currentClassBytes = Files.readAllBytes(file.toPath());
-                
-                // Reset views
-                boolean showBytecode = showBytecodeToggle.isSelected();
-                String origDecompiled = decompiler.decompile(currentClassBytes, showBytecode);
-                originalSourceView.replaceText(origDecompiled);
-                originalSourceView.setStyleSpans(0, JavaSyntaxHighlighter.computeHighlighting(origDecompiled));
-                
-                instrumentedSourceView.replaceText(""); // Clear the preview
+                jarProcessor.processJar(
+                    currentJarFile, saveFile, 
+                    hookMessageInput.getText(), 
+                    hookTypePicker.getValue(), 
+                    methodFilterInput.getText()
+                );
+                new Alert(Alert.AlertType.INFORMATION, "JAR Exported Successfully!").show();
             } catch (IOException e) {
-                e.printStackTrace();
+                new Alert(Alert.AlertType.ERROR, "Export Failed: " + e.getMessage()).show();
             }
         }
     }
@@ -175,6 +264,11 @@ public class Main extends Application {
             try {
                 boolean showBytecode = showBytecodeToggle.isSelected();
                 
+                // Original
+                String origDecompiled = decompiler.decompile(currentClassBytes, showBytecode);
+                originalSourceView.replaceText(origDecompiled);
+                originalSourceView.setStyleSpans(0, JavaSyntaxHighlighter.computeHighlighting(origDecompiled));
+
                 // Instrumented
                 byte[] transformed = transformer.transform(currentClassBytes, hookMessageInput.getText(), hookTypePicker.getValue(), methodFilterInput.getText());
                 String instDecompiled = decompiler.decompile(transformed, showBytecode);
@@ -182,9 +276,9 @@ public class Main extends Application {
                 instrumentedSourceView.setStyleSpans(0, JavaSyntaxHighlighter.computeHighlighting(instDecompiled));
                 
                 // Also refresh original in case "Show Bytecode" changed
-                String origDecompiled = decompiler.decompile(currentClassBytes, showBytecode);
-                originalSourceView.replaceText(origDecompiled);
-                originalSourceView.setStyleSpans(0, JavaSyntaxHighlighter.computeHighlighting(origDecompiled));
+                String refreshedOrig = decompiler.decompile(currentClassBytes, showBytecode);
+                originalSourceView.replaceText(refreshedOrig);
+                originalSourceView.setStyleSpans(0, JavaSyntaxHighlighter.computeHighlighting(refreshedOrig));
 
             } catch (Exception e) {
                 instrumentedSourceView.replaceText("Error transforming: " + e.getMessage());
